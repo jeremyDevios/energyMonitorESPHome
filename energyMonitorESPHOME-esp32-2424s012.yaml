@@ -1,0 +1,294 @@
+substitutions:
+  name: "energymonitor-round-display"
+  friendly_name: "Energy Monitor Round Display"
+  section1_end: "0"
+  section2_end: "400"
+  section3_end: "5000"
+  center_label: "400"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+  level: INFO
+
+# Enable Home Assistant API
+api:
+
+# Allow Over-The-Air updates
+ota:
+  - platform: esphome
+
+# Allow provisioning Wi-Fi via serial
+improv_serial:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+# In combination with the `ap` this allows the user
+# to provision wifi credentials to the device via WiFi AP.
+captive_portal:
+
+
+
+sensor:
+  - platform: homeassistant
+    id: housePower
+    entity_id: sensor.house_power_channel_1_power
+    internal: True
+    filters:
+      - or:
+        - delta: 1 # Send updates only when the change is more than 1 watt
+        - timeout:
+            timeout: 5min
+            value: 0
+      - multiply: 1 
+    on_value:
+      then:
+        - script.execute: update_display
+
+  - platform: homeassistant
+    id: solarPower
+    entity_id: sensor.production_solaire
+    internal: True
+    filters:
+      - or:
+        - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
+        - timeout:
+            timeout: 90min
+            value: 0
+    on_value:
+      then:
+        - script.execute: update_display
+
+  - platform: homeassistant
+    id: cost_today
+    entity_id: sensor.prix_journalier_total
+    internal: True
+    filters:
+      - or:
+        - delta: 1 # Send updates only when the change is more than 1 kr
+        - timeout:
+            timeout: 150min
+            value: 0
+  - platform: homeassistant
+    id: kwh_month
+    entity_id: sensor.kwh_hittil_mnd
+    internal: True
+    filters:
+      - or:
+        - delta: 0.5 # Send updates only when the change is more than 0.5 kWh
+        - timeout:
+            timeout: 90min
+            value: 0
+  - platform: homeassistant
+    id: cost_month
+    entity_id: sensor.prix_mois_total
+    internal: True
+    filters:
+      - or:
+        - delta: 1 # Send updates only when the change is more than 1 kr
+        - timeout:
+            timeout: 150min
+            value: 0
+
+spi:
+  clk_pin: GPIO6
+  mosi_pin: GPIO7
+
+output:
+  - platform: ledc
+    pin:
+      number: GPIO3
+    id: backlight_output
+
+light:
+  - platform: monochromatic
+    output: backlight_output
+    name: LCD Backlight
+    id: back_light
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_off: 
+      then:
+        lvgl.pause
+
+display:
+  - platform: ili9xxx
+    invert_colors: true
+    rotation: 0
+    id: lcd_display
+    model: gc9a01a
+    data_rate: 80MHz
+    cs_pin: GPIO10
+    dc_pin: GPIO2
+    dimensions:
+      width: 240
+      height: 240
+    update_interval: never
+    auto_clear_enabled: false
+ 
+script:
+  - id: update_display
+    then:
+      # Update the consumption text
+      - lvgl.label.update:
+          id: consumption_text
+          text: !lambda |-
+            int value = id(housePower).state;
+            if (value < 0) {
+              return (std::string("-") + std::to_string(std::abs(value)) + " W").c_str();
+            } else {
+              return (std::to_string(value) + " W").c_str();
+            }
+
+      # Update the production text
+      - lvgl.label.update:
+          id: production_text
+          text: !lambda |-
+            return (std::to_string((int)id(solarPower).state) + " W").c_str();
+
+      # On initial setup, trigger page to refresh
+      - delay: 500ms
+      - lambda: |-
+          id(lcd_display).update();
+
+# Add this section before the lvgl section
+image:
+  - file: "icons/electrical_services.png"
+    id: consumption_icon
+    type: BINARY
+    resize: 24x24
+
+lvgl:
+  log_level: WARN
+  color_depth: 16
+  bg_color: 0x000000
+  border_width: 0
+  outline_width: 0
+  shadow_width: 0
+  text_font: unscii_16
+  align: center
+  border_color: 0x000000
+  pages:
+    - id: main_page
+      widgets:
+        #- obj:
+        #    height: 240
+        #    width: 240
+        #    bg_color: 0x000000
+        #    align: top_left
+        #    widgets:
+              # Consumption background arc (top)
+              - arc:
+                  id: consumption_bg_arc
+                  x: 0
+                  y: 0
+                  width: 220
+                  height: 220
+                  align: center
+                  start_angle: 160
+                  end_angle: 20
+                  bg_opa: 0
+                  line_width: 10
+                  arc_color: 0x333333
+              
+              # Consumption value arc (top overlay)
+              - arc:
+                  id: consumption_arc
+                  x: 0
+                  y: 0
+                  width: 220
+                  height: 220
+                  align: center
+                  start_angle: 160
+                  end_angle: 300
+                  bg_opa: 0
+                  line_width: 10
+                  arc_color: 0xFF2626
+                  
+              # Production background arc (bottom)
+              - arc:
+                  id: production_bg_arc
+                  x: 0
+                  y: 0
+                  width: 220
+                  height: 220
+                  align: center
+                  start_angle: 30
+                  end_angle: 150
+                  bg_opa: 0
+                  line_width: 10
+                  arc_color: 0x333333
+                  
+              # Production value arc (bottom overlay)
+              - arc:
+                  id: production_arc
+                  x: 0
+                  y: 0
+                  width: 220
+                  height: 220
+                  align: center
+                  start_angle: 130 
+                  end_angle: 150
+                  bg_opa: 0
+                  line_width: 10
+                  arc_color: 0x26FF4D
+              
+              # Consumption text
+              - label:
+                  id: consumption_text
+                  x: 0
+                  y: -50
+                  text: "0 W"
+                  text_font: MONTSERRAT_30
+                  text_color: 0xFF2626
+                  align: center
+              
+              # Production text
+              - label:
+                  id: production_text
+                  x: 0
+                  y: 50
+                  text: "0 W"
+                  text_font: MONTSERRAT_24
+                  text_color: 0x26FF4D
+                  align: center
+              
+              # House icon
+              - image:
+                  id: house_icon
+                  x: 0
+                  y: -80
+                  src: consumption_icon
+                  align: center
+              
+              # Left eye
+              - obj:
+                  id: left_eye
+                  x: 60
+                  y: 95
+                  width: 50
+                  height: 50
+                  radius: 20
+                  bg_color: 0x00FFFF
+                  border_width: 0
+              
+              # Right eye
+              - obj:
+                  id: right_eye
+                  x: 130
+                  y: 95
+                  width: 50
+                  height: 50
+                  radius: 20
+                  bg_color: 0x00FFFF
+                  border_width: 0

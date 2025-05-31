@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+
+# ESPHome secrets
+secrets.yaml
+
+# Temporary folders and files
+.DS_Store
+.esphome/
+.vscode/
