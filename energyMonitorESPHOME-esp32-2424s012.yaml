@@ -294,8 +294,13 @@ interval:
 image:
   - file: "icons/electrical_services.png"
     id: consumption_icon
-    type: BINARY
+    type: RGB565
     resize: 24x24
+  - file: "icons/solar_power.png"
+    id: solar_icon
+    type: RGB565
+    resize: 24x24
+
 
 lvgl:
   log_level: WARN
@@ -362,6 +367,12 @@ lvgl:
             x: 0
             y: -80
             src: consumption_icon
+            align: center
+        - image:
+            id: production_icon
+            x: 0
+            y: 80
+            src: solar_icon
             align: center
         - obj:
             id: left_eye
