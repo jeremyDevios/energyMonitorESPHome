@@ -1,7 +1,0 @@
-name: "Arc Angle Updater"
-domain: arc_angle_updater
-platform: arc_angle_updater
-documentation: "Displays and animates an LVGL arc with random end_angle"
-dependencies: ["lvgl"]
-files:
-  - arc_angle_updater.h
