@@ -206,6 +206,7 @@ script:
           id(arc_consumption_value) = consumption_value_arc;
           id(arc_consumption_color) = consumption_color;
           id(consumption_value) = power;
+          id(consumption_text_color) = consumption_color;
 
           //Update production arc
           int production_value_arc = 0;
@@ -235,14 +236,17 @@ script:
           id(arc_production_value) = production_value_arc;
           id(arc_production_color) = production_color;
           id(production_value) = solar;
+          id(production_text_color) = production_color;
 
       - lvgl.label.update:
           id: consumption_text
           text: !lambda 'return (std::to_string(id(consumption_value)) + " W").c_str();'
+          text_color: !lambda 'return lv_color_hex(id(consumption_text_color));'
 
       - lvgl.label.update:
           id: production_text
           text: !lambda 'return (std::to_string(id(production_value)) + " W").c_str();'
+          text_color: !lambda 'return lv_color_hex(id(production_text_color));'
 
       - lvgl.arc.update:
           id: consumption_arc
@@ -285,6 +289,14 @@ globals:
     type: int
     restore_value: no
     initial_value: '0'
+  - id: consumption_text_color
+    type: uint32_t
+    restore_value: no
+    initial_value: '0xFF2626'
+  - id: production_text_color
+    type: uint32_t
+    restore_value: no
+    initial_value: '0xFF2626'
 
 interval:
   - interval: 2s
